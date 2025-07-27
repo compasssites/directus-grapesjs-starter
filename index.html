@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Directus GrapesJS Builder</title>
+  <!-- Tailwind CSS for quick, responsive styling -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+  />
+  <!-- GrapesJS default styles -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/grapesjs@0.22.6/dist/css/grapes.min.css"
+  />
+  <style>
+    /* Ensure the editor fills the available space */
+    html,
+    body,
+    #app {
+      height: 100%;
+      margin: 0;
+    }
+    #editor {
+      flex: 1;
+      min-height: 0;
+    }
+  </style>
+</head>
+<body class="h-full">
+  <!-- Application container -->
+  <div id="app" class="flex flex-col h-full">
+    <!-- Top bar with configuration and actions -->
+    <div
+      class="p-4 bg-gray-100 border-b flex flex-wrap gap-3 items-center justify-between"
+    >
+      <h1 class="text-2xl font-bold">Directus GrapesJS Builder</h1>
+      <div class="flex flex-wrap gap-2 items-center">
+        <input
+          id="directus-url"
+          type="text"
+          placeholder="Enter Directus URL (e.g., https://example.directus.app)"
+          class="border rounded p-2 text-sm w-80"
+        />
+        <button
+          id="connect-btn"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm"
+        >
+          Connect
+        </button>
+        <button
+          id="preview-btn"
+          class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm"
+        >
+          Preview
+        </button>
+        <button
+          id="save-btn"
+          class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-sm"
+        >
+          Save
+        </button>
+        <button
+          id="load-btn"
+          class="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded text-sm"
+        >
+          Load
+        </button>
+      </div>
+    </div>
+    <!-- Sidebar for collections and fields -->
+    <div class="flex flex-1 overflow-hidden">
+      <aside
+        id="sidebar"
+        class="w-60 border-r overflow-y-auto p-3 hidden md:block"
+      >
+        <h2 class="font-semibold mb-2">Collections</h2>
+        <ul id="collections-list" class="space-y-1 text-sm"></ul>
+        <div id="fields-container" class="mt-4 hidden">
+          <h3 class="font-semibold mb-2">Fields</h3>
+          <div id="fields-list" class="space-y-1"></div>
+          <button
+            id="set-selection"
+            class="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-xs"
+          >
+            Use Selected Fields
+          </button>
+        </div>
+      </aside>
+      <!-- GrapesJS editor container -->
+      <div id="editor" class="flex-1"></div>
+    </div>
+  </div>
+
+  <!-- GrapesJS library -->
+  <script src="https://cdn.jsdelivr.net/npm/grapesjs@0.22.6/dist/grapes.min.js"></script>
+  <!-- Load Directus SDK (ES module via CDN) -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@directus/sdk@latest/+esm"></script>
+  <!-- Custom application logic -->
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
