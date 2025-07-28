@@ -9,16 +9,21 @@
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
   />
-  <!-- GrapesJS default styles -->
+  <!-- Font Awesome for icons -->
   <link
     rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/grapesjs@0.22.6/dist/css/grapes.min.css"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
   />
   <style>
     /* Ensure the editor fills the available space */
     html,
     body,
-    #app {
+    #app,
+    #auth-container,
+    #editor-container {
       height: 100%;
       margin: 0;
     }
@@ -26,60 +31,368 @@
       flex: 1;
       min-height: 0;
     }
+    .app-card {
+      transition: all 0.2s ease-in-out;
+    }
+    .app-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .hidden {
+      display: none;
+    }
+    /* GrapesJS styles */
+    .gjs-one-bg {
+      background-color: #78366a;
+    }
+    .gjs-two-color {
+      color: rgba(255, 255, 255, 0.7);
+    }
+    .gjs-three-bg {
+      background-color: #ec5896;
+      color: white;
+    }
+    .gjs-four-color,
+    .gjs-four-color-h:hover {
+      color: #ec5896;
+    }
   </style>
 </head>
-<body class="h-full">
-  <!-- Application container -->
-  <div id="app" class="flex flex-col h-full">
-    <!-- Top bar with configuration and actions -->
-    <div
-      class="p-4 bg-gray-100 border-b flex flex-wrap gap-3 items-center justify-between"
-    >
-      <h1 class="text-2xl font-bold">Directus GrapesJS Builder</h1>
-      <div class="flex flex-wrap gap-2 items-center">
-        <input
-          id="directus-url"
-          type="text"
-          placeholder="Enter Directus URL (e.g., https://example.directus.app)"
-          class="border rounded p-2 text-sm w-80"
-        />
-        <button
-          id="connect-btn"
-          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm"
-        >
-          Connect
+<body class="h-full bg-gray-50">
+  <!-- Auth Container (initially visible) -->
+  <div id="auth-container" class="flex items-center justify-center h-full p-4">
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+      <h1 class="text-2xl font-bold text-center mb-8">Directus GrapesJS Builder</h1>
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label for="directus-url" class="block text-sm font-medium text-gray-700 mb-1">Directus URL</label>
+          <input
+            type="text"
+            id="directus-url"
+            name="directus-url"
+            class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="https://your-instance.directus.app"
+            required
+          />
+        </div>
+        <div>
+          <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="your@email.com"
+            type="email"
+            required
+          />
+        </div>
+        <div>
+          <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="••••••••"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+        <div class="pt-2">
+          <button
+            type="submit"
+            id="login-btn"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium transition-colors"
+          >
+            Sign In
+          </button>
+        </div>
+      </form>
+      <div id="login-loading" class="hidden text-center py-4">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+        <p class="mt-2 text-gray-600">Signing in...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Container (initially hidden) -->
+  <div id="app" class="hidden flex-col h-full">
+    <!-- Top Navigation -->
+    <nav class="bg-white border-b border-gray-200">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+          <!-- Left side: Logo and Navigation -->
+          <div class="flex items-center">
+            <div class="flex-shrink-0 flex items-center">
+              <h1 class="text-xl font-bold text-gray-900">Directus Builder</h1>
+            </div>
+            <!-- Main Navigation -->
+            <div class="hidden md:ml-10 md:flex md:space-x-8">
+              <a href="#" id="apps-tab" class="border-blue-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200">
+                <i class="fas fa-th-large mr-2"></i>My Apps
+              </a>
+              <a href="#" id="editor-tab" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200">
+                <i class="fas fa-edit mr-2"></i>Editor
+              </a>
+              <a href="#" id="collections-tab" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200">
+                <i class="fas fa-database mr-2"></i>Collections
+              </a>
+            </div>
+          </div>
+          
+          <!-- Right side: Actions and User Menu -->
+          <div class="flex items-center space-x-4">
+            <!-- Save Button -->
+            <button id="save-btn" class="hidden md:inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+              <i class="fas fa-save mr-2"></i>Save
+            </button>
+            
+            <!-- Mobile menu button -->
+            <div class="md:hidden">
+              <button type="button" id="mobile-menu-button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
+                <span class="sr-only">Open main menu</span>
+                <i class="fas fa-bars h-6 w-6"></i>
+              </button>
+            </div>
+            
+            <!-- User Menu -->
+            <div class="relative ml-4">
+              <button id="user-menu-button" class="max-w-xs bg-white flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" aria-expanded="false" aria-haspopup="true">
+                <span class="sr-only">Open user menu</span>
+                <div class="flex items-center">
+                  <span id="user-email" class="hidden md:block mr-3 text-sm font-medium text-gray-700 truncate max-w-xs"></span>
+                  <div class="relative">
+                    <img id="user-avatar" class="h-8 w-8 rounded-full bg-gray-200" src="" alt="User avatar" onerror="this.src='https://ui-avatars.com/api/?name=U&background=3b82f6&color=fff'" />
+                    <span class="absolute bottom-0 right-0 block h-2 w-2 rounded-full bg-green-400 ring-2 ring-white"></span>
+                  </div>
+                </div>
+              </button>
+              
+              <!-- Dropdown menu -->
+              <div id="user-dropdown-menu" class="hidden origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
+                <div class="py-1" role="none">
+                  <a href="#" id="profile-btn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
+                    <i class="fas fa-user-circle mr-2 w-5 text-center"></i>Your Profile
+                  </a>
+                  <a href="#" id="settings-btn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
+                    <i class="fas fa-cog mr-2 w-5 text-center"></i>Settings
+                  </a>
+                  <div class="border-t border-gray-100"></div>
+                  <a href="#" id="logout-btn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
+                    <i class="fas fa-sign-out-alt mr-2 w-5 text-center"></i>Sign out
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Mobile menu, show/hide based on menu state. -->
+      <div id="mobile-menu" class="md:hidden hidden bg-white shadow-lg rounded-b-lg">
+        <div class="pt-2 pb-3 space-y-0">
+          <!-- User profile section -->
+          <div class="flex items-center px-4 py-3 border-b border-gray-200">
+            <div class="flex-shrink-0">
+              <img id="mobile-user-avatar" class="h-10 w-10 rounded-full bg-gray-200" src="" alt="User avatar" onerror="this.src='https://ui-avatars.com/api/?name=U&background=3b82f6&color=fff'" />
+            </div>
+            <div class="ml-3">
+              <div id="mobile-user-email" class="text-sm font-medium text-gray-700 truncate">user@example.com</div>
+              <div class="text-xs font-medium text-blue-600">Available</div>
+            </div>
+          </div>
+          
+          <!-- Navigation links -->
+          <a href="#" id="mobile-apps-tab" class="bg-blue-50 border-blue-500 text-blue-700 block pl-4 pr-4 py-3 border-l-4 text-base font-medium flex items-center">
+            <i class="fas fa-th-large mr-3 w-5 text-center"></i>My Apps
+          </a>
+          <a href="#" id="mobile-editor-tab" class="border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 block pl-4 pr-4 py-3 border-l-4 text-base font-medium flex items-center">
+            <i class="fas fa-edit mr-3 w-5 text-center"></i>Editor
+          </a>
+          <a href="#" id="mobile-collections-tab" class="border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 block pl-4 pr-4 py-3 border-l-4 text-base font-medium flex items-center">
+            <i class="fas fa-database mr-3 w-5 text-center"></i>Collections
+          </a>
+          
+          <!-- Actions section -->
+          <div class="border-t border-gray-200 my-1"></div>
+          <a href="#" id="mobile-save-btn" class="block px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 flex items-center">
+            <i class="fas fa-save mr-3 w-5 text-center"></i>Save Changes
+          </a>
+          <a href="#" id="mobile-settings-btn" class="block px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 flex items-center">
+            <i class="fas fa-cog mr-3 w-5 text-center"></i>Settings
+          </a>
+          
+          <!-- Logout section -->
+          <div class="border-t border-gray-200 my-1"></div>
+          <a href="#" id="mobile-logout-btn" class="block px-4 py-3 text-base font-medium text-red-600 hover:bg-red-50 flex items-center">
+            <i class="fas fa-sign-out-alt mr-3 w-5 text-center"></i>Sign out
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="flex-1 overflow-hidden">
+      <!-- Apps View -->
+      <div id="apps-view" class="h-full overflow-y-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-bold text-gray-900">My Apps</h2>
+          <button id="new-app-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+            <i class="fas fa-plus mr-2"></i>New App
+          </button>
+        </div>
+        <div id="app-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Apps will be loaded here -->
+          <div class="text-center py-8 text-gray-500">
+            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+            <p>Loading your apps...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Editor View -->
+      <div id="editor-view" class="h-full hidden flex-col">
+        <div class="p-4 bg-white border-b flex items-center justify-between">
+          <div class="flex items-center space-x-4">
+            <h2 id="current-app-name" class="text-lg font-semibold">Untitled App</h2>
+            <button id="rename-app-btn" class="text-gray-500 hover:text-gray-700">
+              <i class="fas fa-edit"></i>
+            </button>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button id="preview-btn" class="flex items-center text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
+              <i class="fas fa-eye mr-1.5"></i> Preview
+            </button>
+            <button id="save-app-btn" class="flex items-center text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700">
+              <i class="fas fa-save mr-1.5"></i> Save
+            </button>
+          </div>
+        </div>
+        <div class="flex flex-1 overflow-hidden">
+          <!-- Sidebar for collections and fields -->
+          <aside id="sidebar" class="w-64 border-r bg-white overflow-y-auto p-4 hidden">
+            <h2 class="font-semibold mb-3 text-gray-800">Collections</h2>
+            <div class="relative mb-4">
+              <input
+                type="text"
+                id="app-search"
+                placeholder="Search collections..."
+                class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+              <i class="fas fa-search absolute right-3 top-2.5 text-gray-400"></i>
+            </div>
+            <ul id="collections-list" class="space-y-1 text-sm"></ul>
+            <div id="fields-container-sidebar" class="mt-6 hidden">
+              <div class="flex justify-between items-center mb-2">
+                <h3 class="font-semibold text-gray-800">Fields</h3>
+                <button id="select-all-fields" class="text-xs text-blue-600 hover:text-blue-800">
+                  Select All
+                </button>
+              </div>
+              <div id="fields-list-sidebar" class="space-y-2 max-h-96 overflow-y-auto pr-2"></div>
+              <button
+                id="set-selection-sidebar"
+                class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Use Selected Fields
+              </button>
+            </div>
+          </aside>
+          
+          <!-- GrapesJS editor container -->
+          <div id="editor" class="flex-1"></div>
+          
+          <!-- Right Sidebar for Component Settings -->
+          <div id="settings-panel" class="w-80 border-l bg-white overflow-y-auto p-4">
+            <h3 class="font-semibold mb-4 text-gray-800">Component Settings</h3>
+            <div id="component-settings" class="space-y-4">
+              <div class="text-sm text-gray-500 italic">
+                Select a component to edit its settings
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Collections View -->
+      <div id="collections-view" class="h-full overflow-y-auto p-6 hidden">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Collections</h2>
+        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Collection
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Items
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody id="collections-table-body" class="bg-white divide-y divide-gray-200">
+              <!-- Collections will be loaded here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Editor Container -->
+  <div id="editor-container" class="hidden flex-1 flex flex-col h-full">
+    <!-- Toolbar -->
+    <div id="toolbar" class="bg-white border-b p-2 flex items-center space-x-2">
+      <div class="flex items-center space-x-1">
+        <button data-command="select-comp" class="p-2 hover:bg-gray-100 rounded" title="Select">
+          <i class="fas fa-mouse-pointer"></i>
         </button>
-        <button
-          id="preview-btn"
-          class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm"
-        >
-          Preview
+        <button data-command="gjs-open-import-template" class="p-2 hover:bg-gray-100 rounded" title="Import">
+          <i class="fas fa-file-import"></i>
         </button>
-        <button
-          id="save-btn"
-          class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-sm"
-        >
-          Save
+        <button data-command="gjs-clear" class="p-2 hover:bg-gray-100 rounded" title="Clear">
+          <i class="fas fa-trash-alt"></i>
         </button>
-        <button
-          id="load-btn"
-          class="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded text-sm"
-        >
-          Load
+      </div>
+      <div class="flex items-center space-x-1 border-l border-gray-200 pl-2 ml-2">
+        <button data-command="device-desktop" class="p-2 hover:bg-gray-100 rounded" title="Desktop">
+          <i class="fas fa-desktop"></i>
+        </button>
+        <button data-command="device-tablet" class="p-2 hover:bg-gray-100 rounded" title="Tablet">
+          <i class="fas fa-tablet-alt"></i>
+        </button>
+        <button data-command="device-mobile" class="p-2 hover:bg-gray-100 rounded" title="Mobile">
+          <i class="fas fa-mobile-alt"></i>
+        </button>
+      </div>
+      <div class="ml-auto flex items-center space-x-2">
+        <button id="show-collections" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm">
+          <i class="fas fa-database mr-1"></i> Collections
+        </button>
+        <button id="show-apps" class="px-3 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded text-sm">
+          <i class="fas fa-th-large mr-1"></i> My Apps
         </button>
       </div>
     </div>
-    <!-- Sidebar for collections and fields -->
+    
+    <!-- Main Content -->
     <div class="flex flex-1 overflow-hidden">
-      <aside
-        id="sidebar"
+      <!-- Sidebar for collections and fields -->
+      <aside id="sidebar" class="w-64 bg-white border-r overflow-y-auto"
         class="w-60 border-r overflow-y-auto p-3 hidden md:block"
       >
         <h2 class="font-semibold mb-2">Collections</h2>
         <ul id="collections-list" class="space-y-1 text-sm"></ul>
-        <div id="fields-container" class="mt-4 hidden">
+        <div id="fields-container-editor" class="mt-4 hidden">
           <h3 class="font-semibold mb-2">Fields</h3>
-          <div id="fields-list" class="space-y-1"></div>
+          <div id="fields-list-editor" class="space-y-1"></div>
           <button
             id="set-selection"
             class="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-xs"
@@ -93,11 +406,96 @@
     </div>
   </div>
 
-  <!-- GrapesJS library -->
-  <script src="https://cdn.jsdelivr.net/npm/grapesjs@0.22.6/dist/grapes.min.js"></script>
-  <!-- Load Directus SDK (ES module via CDN) -->
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@directus/sdk@latest/+esm"></script>
-  <!-- Custom application logic -->
-  <script type="module" src="./main.js"></script>
+  <!-- All JavaScript is bundled into bundle.js by webpack -->
+      </aside>
+      
+      <!-- Main Editor Area -->
+      <div class="flex-1 flex flex-col overflow-hidden">
+        <!-- Editor Canvas -->
+        <div id="editor" class="flex-1 overflow-auto bg-gray-100">
+          <div id="gjs" class="h-full">
+            <!-- GrapesJS will be initialized here -->
+          </div>
+        </div>
+        
+        <!-- Status Bar -->
+        <div class="bg-white border-t p-2 text-xs text-gray-500 flex justify-between items-center">
+          <div id="status-message">Ready</div>
+          <div class="flex items-center space-x-4">
+            <span id="current-device">Desktop</span>
+            <span id="zoom-level">100%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div id="collection-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-2xl">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-medium">Select Collection</h3>
+        <button id="close-collection-modal" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="mb-4">
+        <input type="text" id="collection-search" placeholder="Search collections..." 
+               class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+      </div>
+      <div id="collection-list" class="max-h-96 overflow-y-auto">
+        <!-- Collection items will be added here dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Editor Area -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <!-- Editor Canvas -->
+    <div id="editor" class="flex-1 overflow-auto bg-gray-100">
+      <div id="gjs" class="h-full">
+        <!-- GrapesJS will be initialized here -->
+      </div>
+    </div>
+    
+    <!-- Status Bar -->
+    <div class="bg-white border-t p-2 text-xs text-gray-500 flex justify-between items-center">
+      <div id="status-message">Ready</div>
+      <div class="flex items-center space-x-4">
+        <span id="current-device">Desktop</span>
+        <span id="zoom-level">100%</span>
+      </div>
+  
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Initialize the application when the DOM is fully loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      // Wait for webpack to load the main script
+      const checkApp = setInterval(() => {
+        if (window.DirectusGrapesJSBuilder) {
+          clearInterval(checkApp);
+          try {
+            window.app = new window.DirectusGrapesJSBuilder();
+            console.log('Application initialized successfully');
+          } catch (error) {
+            console.error('Failed to initialize application:', error);
+          }
+        }
+      }, 100);
+
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        if (!window.app) {
+          clearInterval(checkApp);
+          console.error('Failed to initialize application: DirectusGrapesJSBuilder not found after timeout');
+        }
+      }, 5000);
+    });
+  </script>
+  <!-- Include the bundled JavaScript -->
+  <script src="bundle.js"></script>
 </body>
 </html>

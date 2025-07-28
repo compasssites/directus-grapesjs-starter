@@ -1,0 +1,19 @@
+{
+  "presets": [
+    ["@babel/preset-env", {
+      "targets": {
+        "browsers": ["> 0.25%, not dead"]
+      },
+      "useBuiltIns": "entry",
+      "corejs": 3,
+      "modules": false,
+      "shippedProposals": true
+    }]
+  ],
+  "plugins": [
+    ["@babel/plugin-transform-runtime", {
+      "corejs": 3,
+      "regenerator": true
+    }]
+  ]
+}
