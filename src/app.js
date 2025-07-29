@@ -179,6 +179,9 @@ class DirectusGrapesJSBuilder {
 
   async connectToDirectus(url, email, password) {
     try {
+      // Clear any existing auth data to ensure fresh connection
+      localStorage.removeItem('directus-auth');
+      
       // Create Directus client
       this.directusClient = createDirectus(url).with(rest()).with(authentication());
       
@@ -199,7 +202,17 @@ class DirectusGrapesJSBuilder {
       
     } catch (error) {
       console.error('Failed to connect to Directus:', error);
-      throw new Error('Failed to connect to Directus: ' + error.message);
+      
+      // Provide more specific error messages
+      if (error.message && error.message.includes('CORS')) {
+        throw new Error('CORS error: Please ensure the Directus URL is correct and CORS is properly configured');
+      } else if (error.response && error.response.status === 500) {
+        throw new Error('Server error: The Directus server encountered an internal error. Please check server logs.');
+      } else if (error.response && error.response.status === 401) {
+        throw new Error('Authentication failed: Invalid email or password');
+      } else {
+        throw new Error(`Failed to connect to Directus: ${error.message || 'Unknown error'}`);
+      }
     }
   }
 
