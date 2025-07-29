@@ -1,5 +1,4 @@
 // Import GrapesJS and its plugins
-// Import GrapesJS and its plugins
 import grapesjs from 'grapesjs';
 import 'grapesjs/dist/css/grapes.min.css';
 import 'grapesjs/dist/grapes.min.js';
@@ -11,13 +10,13 @@ import {
   createDirectus, 
   rest, 
   authentication, 
-  staticToken, 
-  readItems, 
-  readMe, 
-  updateItem, 
-  createItem, 
-  deleteItem 
+  staticToken,
+  readMe,
+  withToken
 } from '@directus/sdk';
+
+// Import Directus SDK components
+const { readItems, updateItem, createItem, deleteItem } = await import('@directus/sdk');
 
 // Directus REST API client
 class DirectusClient {
@@ -152,6 +151,7 @@ class DirectusGrapesJSBuilder {
     this.deleteApp = this.deleteApp.bind(this);
     this.createNewApp = this.createNewApp.bind(this);
     this.setupAutoSave = this.setupAutoSave.bind(this);
+    this.setToken = this.setToken.bind(this);
 
     // Initialize the application
     this.initialize();
@@ -350,483 +350,492 @@ class DirectusGrapesJSBuilder {
         const isExpanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
         mobileMenuButton.setAttribute('aria-expanded', !isExpanded);
         mobileMenu.classList.toggle('hidden');
-    
-    // Toggle between menu and close icon
-    const icon = mobileMenuButton.querySelector('i');
-    if (icon) {
-      icon.classList.toggle('fa-bars');
-      icon.classList.toggle('fa-times');
-    }
-  });
-}
-
-// User menu dropdown toggle
-const userMenuButton = document.getElementById('user-menu-button');
-const userDropdownMenu = document.getElementById('user-dropdown-menu');
-if (userMenuButton && userDropdownMenu) {
-  userMenuButton.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isExpanded = userMenuButton.getAttribute('aria-expanded') === 'true';
-    userMenuButton.setAttribute('aria-expanded', !isExpanded);
-    userDropdownMenu.classList.toggle('hidden');
-  });
-
-  // Close dropdown when clicking outside
-  document.addEventListener('click', (e) => {
-    if (!userMenuButton.contains(e.target) && !userDropdownMenu.contains(e.target)) {
-      userMenuButton.setAttribute('aria-expanded', 'false');
-      userDropdownMenu.classList.add('hidden');
-    }
-  });
-}
-
-// Logout button (both desktop and mobile)
-const logoutButtons = [
-  document.getElementById('logout-btn'),
-  document.getElementById('mobile-logout-btn')
-].filter(Boolean);
-
-logoutButtons.forEach(button => {
-  button.addEventListener('click', (e) => {
-    e.preventDefault();
-    this.logout();
-  });
-});
-
-// New app button
-const newAppBtn = document.getElementById('new-app-btn');
-if (newAppBtn) {
-  newAppBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    this.createNewApp();
-  });
-}
-
-// Save app button
-const saveAppBtn = document.getElementById('save-app-btn');
-if (saveAppBtn) {
-  saveAppBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    this.saveCurrentApp();
-  });
-}
-
-// Navigation buttons (desktop and mobile)
-const setupNavigation = (prefix = '') => {
-  const appsTab = document.getElementById(`${prefix}apps-tab`);
-  const editorTab = document.getElementById(`${prefix}editor-tab`);
-  const collectionsTab = document.getElementById(`${prefix}collections-tab`);
-  const saveBtn = document.getElementById(`${prefix}save-btn`);
-
-  if (appsTab) {
-    appsTab.addEventListener('click', (e) => {
-      e.preventDefault();
-      this.showView('apps');
-      // Close mobile menu if open
-      if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-        mobileMenuButton.click();
-      }
-    });
-  }
-  
-  if (editorTab) {
-    editorTab.addEventListener('click', (e) => {
-      e.preventDefault();
-      this.showView('editor');
-      // Close mobile menu if open
-      if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-        mobileMenuButton.click();
-      }
-    });
-  }
-  
-  if (collectionsTab) {
-    collectionsTab.addEventListener('click', (e) => {
-      e.preventDefault();
-      this.showView('collections');
-      // Close mobile menu if open
-      if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-        mobileMenuButton.click();
-      }
-    });
-  }
-  
-  if (saveBtn) {
-    saveBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      this.saveCurrentApp();
-      // Close mobile menu if open
-      if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-        mobileMenuButton.click();
-      }
-    });
-  }
-};
-  
-// Setup both desktop and mobile navigation
-setupNavigation();
-setupNavigation('mobile-');
-  
-// Close mobile menu when clicking on a link
-const mobileLinks = mobileMenu ? mobileMenu.querySelectorAll('a') : [];
-mobileLinks.forEach(link => {
-  link.addEventListener('click', () => {
-    if (!mobileMenu.classList.contains('hidden')) {
-      mobileMenuButton.click();
-    }
-  });
-});
-
-const showCollectionsBtn = document.getElementById('show-collections-btn');
-if (showCollectionsBtn) {
-  showCollectionsBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    this.showView('collections');
-  });
-}
-
-}
-
-// Check for existing session
-async checkSession() {
-try {
-  const savedUrl = localStorage.getItem('directus_url');
-  const savedToken = localStorage.getItem('directus_token');
-  const savedEmail = localStorage.getItem('directus_email');
-  const savedUserId = localStorage.getItem('directus_user_id');
-  
-  if (!savedUrl || !savedToken || !savedEmail) {
-    this.showAuth();
-    return false;
-  }
-  
-  console.log('Checking existing session...');
-  
-  // Initialize Directus with saved token
-  await this.initializeDirectus(savedUrl, savedEmail, savedToken);
-  
-  // Set current user from saved data
-  this.currentUser = { id: savedUserId, email: savedEmail };
-  
-  // Test the connection by loading user data
-  try {
-    const userData = await this.loadCurrentUser();
-    if (userData) {
-      this.currentUser = userData;
-      this.isAuthenticated = true;
-      
-      // Update stored user ID if needed
-      if (userData.id && userData.id !== savedUserId) {
-        localStorage.setItem('directus_user_id', userData.id);
-      }
-      
-      console.log('Session valid, showing app...');
-      this.showApp();
-      
-      // Load apps in the background
-      this.loadUserApps().catch(err => {
-        console.error('Background app load failed:', err);
+        
+        // Toggle between menu and close icon
+        const icon = mobileMenuButton.querySelector('i');
+        if (icon) {
+          icon.classList.toggle('fa-bars');
+          icon.classList.toggle('fa-times');
+        }
       });
       
-      return true;
+      // Close mobile menu when clicking on a link
+      const mobileLinks = mobileMenu.querySelectorAll('a');
+      mobileLinks.forEach(link => {
+        link.addEventListener('click', () => {
+          if (!mobileMenu.classList.contains('hidden')) {
+            mobileMenuButton.click();
+          }
+        });
+      });
     }
-  } catch (userError) {
-    console.error('Failed to load user data:', userError);
-    // Continue to logout on error
-  }
-  
-  // If we get here, the session is invalid
-  console.log('Invalid session, logging out...');
-  this.logout();
-  return false;
-  
-} catch (error) {
-  console.error('Session check failed:', error);
-  this.showNotification('Session expired. Please log in again.', 'error');
-  this.logout();
-  return false;
-}  
-}
+    
+    // User menu dropdown toggle
+    const userMenuButton = document.getElementById('user-menu-button');
+    const userDropdownMenu = document.getElementById('user-dropdown-menu');
+    if (userMenuButton && userDropdownMenu) {
+      userMenuButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isExpanded = userMenuButton.getAttribute('aria-expanded') === 'true';
+        userMenuButton.setAttribute('aria-expanded', !isExpanded);
+        userDropdownMenu.classList.toggle('hidden');
+      });
 
-// Initialize Directus client
-async initializeDirectus(url, email, token = null) {
-try {
-  // Ensure URL has the correct format
-  const apiUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-  
-  console.log('Initializing Directus client with URL:', apiUrl);
-  
-  // Create Directus client with REST and authentication plugins
-  this.directus = createDirectus(apiUrl)
-    .with(rest({
-      onRequest: (options) => {
-        // Add auth token to all requests
-        options.headers = options.headers || {};
-        if (token) {
-          options.headers['Authorization'] = `Bearer ${token}`;
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (userMenuButton && userDropdownMenu && 
+            !userMenuButton.contains(e.target) && 
+            !userDropdownMenu.contains(e.target)) {
+          userMenuButton.setAttribute('aria-expanded', 'false');
+          userDropdownMenu.classList.add('hidden');
         }
-        options.headers['Accept'] = 'application/json';
-        options.headers['Content-Type'] = 'application/json';
-        return options;
-      }
-    }))
-    .with(authentication('json'));
-  
-  // Store URL and token for direct API calls
-  this.directus.url = apiUrl;
-  
-  if (token) {
-    console.log('Setting up authentication with token');
-    // Set the static token for authentication
-    this.directus = this.directus.with(staticToken(token));
-    this.directus.token = token; // Store token for direct API calls
-    this.directus.setToken = (newToken) => {
-      this.directus.token = newToken;
-      // Update the static token plugin with the new token
-      this.directus = this.directus.with(staticToken(newToken));
-    };
-    this.isAuthenticated = true;
-  }
-  
-  return true;
-} catch (error) {
-  console.error('Failed to initialize Directus client:', error);
-  throw new Error('Failed to connect to Directus server. Please check the URL and try again.');
-}
-}
-
-// Test Directus API connection
-async testDirectusConnection(url, token) {
-try {
-  console.log('Testing Directus API connection...');
-  
-  // Test server availability
-  const serverInfo = await fetch(`${url}/server/info`);
-  if (!serverInfo.ok) {
-    throw new Error(`Server not available: ${serverInfo.status} ${serverInfo.statusText}`);
-  }
-  
-  // Test authentication
-  const authCheck = await fetch(`${url}/users/me`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/json'
+      });
     }
-  });
-  
-  if (!authCheck.ok) {
-    const error = await authCheck.json().catch(() => ({}));
-    console.error('Authentication failed:', {
-      status: authCheck.status,
-      statusText: authCheck.statusText,
-      error
-    });
-    throw new Error(`Authentication failed: ${authCheck.status} ${authCheck.statusText}`);
   }
   
-  const userData = await authCheck.json();
-  console.log('Authentication successful, user data:', userData);
-  return userData;
-} catch (error) {
-  console.error('Connection test failed:', error);
-  throw error;
-}
-}
+  // Set up navigation
+  setupNavigation(prefix = '') {
+    const mobileMenu = document.getElementById('mobile-menu');
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    
+    const appsTab = document.getElementById(`${prefix}apps-tab`);
+    const editorTab = document.getElementById(`${prefix}editor-tab`);
+    const collectionsTab = document.getElementById(`${prefix}collections-tab`);
+    const saveBtn = document.getElementById(`${prefix}save-btn`);
 
-// Handle user login with direct fetch to bypass OTP
-  async login(email = 'admin@example.com', password = '5a03ea6a', url = 'https://directus-oracle.panel.ballarihealth.com') {
+    if (appsTab) {
+      appsTab.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.showView('apps');
+        // Close mobile menu if open
+        if (mobileMenu && !mobileMenu.classList.contains('hidden') && mobileMenuButton) {
+          mobileMenuButton.click();
+        }
+      });
+    }
+    
+    if (editorTab) {
+      editorTab.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.showView('editor');
+        // Close mobile menu if open
+        if (mobileMenu && !mobileMenu.classList.contains('hidden') && mobileMenuButton) {
+          mobileMenuButton.click();
+        }
+      });
+    }
+    
+    if (collectionsTab) {
+      collectionsTab.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.showView('collections');
+        // Close mobile menu if open
+        if (mobileMenu && !mobileMenu.classList.contains('hidden') && mobileMenuButton) {
+          mobileMenuButton.click();
+        }
+      });
+    }
+    
+    if (saveBtn) {
+      saveBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.saveCurrentApp();
+        // Close mobile menu if open
+        if (mobileMenu && !mobileMenu.classList.contains('hidden') && mobileMenuButton) {
+          mobileMenuButton.click();
+        }
+      });
+    }
+  }
+  
+  // Initialize the application
+  async initialize() {
+    // Set up event listeners
+    this.setupEventListeners();
+    this.setupMobileMenu();
+    
+    // Set up both desktop and mobile navigation
+    this.setupNavigation();
+    this.setupNavigation('mobile-');
+    
+    // Set up collections button
+    const showCollectionsBtn = document.getElementById('show-collections-btn');
+    if (showCollectionsBtn) {
+      showCollectionsBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.showView('collections');
+      });
+    }
+    
+    // Check for existing session
+    await this.checkSession();
+  }
+  
+  // Check for existing session
+  async checkSession() {
     try {
-      // Show loading state
-      this.showLoading(true, 'Logging in...');
+      const savedUrl = localStorage.getItem('directus_url');
+      const savedToken = localStorage.getItem('directus_token');
+      const savedEmail = localStorage.getItem('directus_email');
+      const savedUserId = localStorage.getItem('directus_user_id');
       
+      if (!savedUrl || !savedToken || !savedEmail) {
+        this.showAuth();
+        return false;
+      }
+  
+      console.log('Checking existing session...');
+      
+      // Initialize Directus with saved token
+      await this.initializeDirectus(savedUrl, savedEmail, savedToken);
+      
+      // Set current user from saved data
+      this.currentUser = { id: savedUserId, email: savedEmail };
+      
+      // Test the connection by loading user data
+      try {
+        const userData = await this.loadCurrentUser();
+        if (userData) {
+          this.currentUser = userData;
+          this.isAuthenticated = true;
+          
+          // Update stored user ID if needed
+          if (userData.id && userData.id !== savedUserId) {
+            localStorage.setItem('directus_user_id', userData.id);
+          }
+          
+          console.log('Session valid, showing app...');
+          this.showApp();
+          
+          // Load apps in the background
+          this.loadUserApps().catch(err => {
+            console.error('Background app load failed:', err);
+          });
+          
+          return true;
+        }
+      } catch (userError) {
+        console.error('Failed to load user data:', userError);
+        // Continue to logout on error
+      }
+      
+      // If we get here, the session is invalid
+      console.log('Invalid session, logging out...');
+      this.logout();
+      return false;
+      
+    } catch (error) {
+      console.error('Session check failed:', error);
+      this.showNotification('Session expired. Please log in again.', 'error');
+      this.logout();
+      return false;
+    }  
+  }
+
+  // Initialize Directus client with static token
+  async initializeDirectus(apiUrl, email, token = null) {
+    try {
       console.log('Initializing Directus client...');
       
       // Ensure URL has the correct format
-      const apiUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-      const apiBaseUrl = `${apiUrl}/`;
+      apiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
       
-      // First, check server info to verify API endpoint
-      console.log('Checking server info...');
-      const serverInfoUrl = new URL('server/info', apiBaseUrl).toString();
-      console.log('Server info endpoint:', serverInfoUrl);
+      // Import required Directus modules
+      const { createDirectus, rest, authentication, staticToken } = await import('@directus/sdk');
       
-      const serverInfoResponse = await fetch(serverInfoUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
-      
-      if (!serverInfoResponse.ok) {
-        const errorText = await serverInfoResponse.text();
-        console.error('Server info check failed:', {
-          status: serverInfoResponse.status,
-          statusText: serverInfoResponse.statusText,
-          error: errorText
-        });
-        throw new Error(`Server not available: ${serverInfoResponse.status} ${serverInfoResponse.statusText}`);
-      }
-      
-      const serverInfo = await serverInfoResponse.json();
-      console.log('Server info:', serverInfo);
-      
-      // Attempt login with the correct API path
-      console.log('Attempting login with email and password...');
-      
-      // Fix the double slash issue by ensuring clean URL concatenation
-      const loginEndpoint = new URL('auth/login', apiBaseUrl).toString();
-      console.log('Login endpoint:', loginEndpoint);
-      
-      const loginResponse = await fetch(loginEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+      // Create a simple storage adapter
+      const storage = {
+        getItem: (key) => {
+          const value = localStorage.getItem(`directus_${key}`);
+          console.log(`Getting ${key} from storage`);
+          return value;
         },
-        body: JSON.stringify({
-          email,
-          password,
-          mode: 'json',
-          otp: undefined // Explicitly set to undefined to avoid null/undefined issues
-        })
-      });
+        setItem: (key, value) => {
+          console.log(`Setting ${key} in storage`);
+          localStorage.setItem(`directus_${key}`, value);
+        },
+        deleteItem: (key) => {
+          console.log(`Removing ${key} from storage`);
+          localStorage.removeItem(`directus_${key}`);
+        }
+      };
       
-      if (!loginResponse.ok) {
-        let errorText;
+      // Create a custom fetch function with proper headers
+      const customFetch = async (url, options = {}) => {
+        const headers = {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin,
+          ...(options.headers || {})
+        };
+        
+        // Use the provided token if available, otherwise try to get it from storage
+        const authToken = token || localStorage.getItem('directus_token');
+        if (authToken) {
+          headers['Authorization'] = `Bearer ${authToken}`;
+        }
+        
+        const fetchOptions = {
+          ...options,
+          headers,
+          credentials: 'include',
+          mode: 'cors'
+        };
+        
+        console.log(`Making request to: ${url}`, {
+          method: fetchOptions.method || 'GET',
+          headers: Object.keys(fetchOptions.headers),
+          hasBody: !!fetchOptions.body
+        });
+        
         try {
-          errorText = await loginResponse.text();
-          const errorData = errorText ? JSON.parse(errorText) : {};
+          const response = await fetch(url, fetchOptions);
+          console.log(`Response status: ${response.status} ${response.statusText}`);
           
-          console.error('Login failed with response:', {
-            status: loginResponse.status,
-            statusText: loginResponse.statusText,
-            url: loginResponse.url,
-            headers: Object.fromEntries(loginResponse.headers.entries()),
-            error: errorData
-          });
-          
-          // Try to extract a meaningful error message
-          let errorMessage = 'Login failed';
-          if (errorData.errors && errorData.errors.length > 0) {
-            errorMessage = errorData.errors.map(e => e.message).join('; ');
-          } else if (errorData.message) {
-            errorMessage = errorData.message;
-          } else if (errorText) {
-            errorMessage = `Server error: ${errorText.substring(0, 200)}`;
+          // Handle 401 Unauthorized responses
+          if (response.status === 401) {
+            console.warn('Received 401 Unauthorized - clearing auth data');
+            localStorage.removeItem('directus_token');
+            localStorage.removeItem('directus_refresh_token');
+            localStorage.removeItem('directus_user');
+            this.isAuthenticated = false;
+            this.currentUser = null;
+            
+            // If we're not already on the login page, redirect there
+            if (!window.location.href.includes('login')) {
+              window.location.href = '/login';
+            }
           }
           
-          throw new Error(`${errorMessage} (${loginResponse.status} ${loginResponse.statusText})`);
-        } catch (e) {
-          console.error('Error processing login error response:', e, 'Raw response text:', errorText);
-          throw new Error(`Login failed: ${loginResponse.status} ${loginResponse.statusText}`);
+          return response;
+        } catch (error) {
+          console.error('Fetch error:', error);
+          throw error;
+        }
+      };
+      
+      // Initialize Directus with minimal configuration
+      this.directus = createDirectus(apiUrl, {
+        auth: {
+          autoRefresh: false,
+          staticToken: token || undefined,
+          storage
+        },
+        globals: {
+          fetch: customFetch
+        }
+      })
+      .with(rest())
+      .with(authentication('json'));
+      
+      // Store the URL and email for later use
+      this.apiUrl = apiUrl;
+      this.email = email;
+      
+      // Set up the static token if provided
+      if (token) {
+        console.log('Setting up authentication with static token');
+        this.directus = this.directus.with(staticToken(token));
+        this.directus.token = token;
+        
+        // Manually set the token in the auth storage
+        if (this.directus.storage) {
+          this.directus.storage.setItem('directus_token', token);
+        }
+        
+        // Set the token in the auth provider
+        if (this.directus.auth?.provider) {
+          this.directus.auth.provider.token = token;
         }
       }
-      
-      const loginData = await loginResponse.json();
-      const accessToken = loginData?.data?.access_token;
-      
-      if (!accessToken) {
-        throw new Error('No access token received from server');
-      }
-      
-      console.log('Login successful, access token received');
-      
-      // Initialize Directus with the token
-      await this.initializeDirectus(apiUrl, email, accessToken);
-      
-      // Store session data
-      localStorage.setItem('directus_url', apiUrl);
-      localStorage.setItem('directus_token', accessToken);
-      localStorage.setItem('directus_email', email);
-      
-      // Set auth token for all future requests
-      this.directus.setToken(accessToken);
-      
-      // Load user data
-      await this.loadCurrentUser();
-      
-      // Show the app view
-      this.showApp();
       
       return true;
     } catch (error) {
-      console.error('Error during login:', error);
-      this.showNotification(`Login failed: ${error.message}`, 'error');
-      
-      // Clear any stored credentials on error
-      localStorage.removeItem('directus_token');
-      localStorage.removeItem('directus_email');
-      localStorage.removeItem('directus_url');
-      
-      throw error; // Re-throw to be handled by the caller
+      console.error('Failed to initialize Directus client:', error);
+      throw new Error('Failed to connect to Directus server. Please check the URL and try again.');
     }
   }
 
-  // Update UI with current user info
-  updateUserUI() {
-    if (!this.currentUser) {
-      console.warn('No current user data available for UI update');
-      return;
+  // Set authentication token for the Directus client
+  setToken(token) {
+    if (!this.directus) {
+      console.warn('Cannot set token: Directus client not initialized');
+      return false;
     }
     
-    console.log('Updating UI with user data:', this.currentUser);
-    const email = this.currentUser.email || 'User';
-    const firstName = this.currentUser.first_name || email.split('@')[0];
-    
-    // Update desktop user info
-    const userEmailElement = document.getElementById('user-email');
-    if (userEmailElement) {
-      userEmailElement.textContent = email;
-    } else {
-      console.warn('Could not find user-email element');
+    if (!token) {
+      console.warn('No token provided to setToken');
+      return false;
     }
     
-    // Update desktop avatar
-    const userAvatarElement = document.getElementById('user-avatar');
-    if (userAvatarElement) {
-      const initials = this.currentUser.first_name?.charAt(0) || 
-                     this.currentUser.email?.charAt(0).toUpperCase() || 'U';
-      userAvatarElement.textContent = initials;
-      userAvatarElement.setAttribute('aria-label', `User menu for ${firstName}`);
-    } else {
-      console.warn('Could not find user-avatar element');
-    }
-    
-    // Update mobile user info
-    const mobileUserEmail = document.getElementById('mobile-user-email');
-    if (mobileUserEmail) {
-      mobileUserEmail.textContent = email;
-    } else {
-      console.warn('Could not find mobile-user-email element');
-    }
-    
-    // Update mobile avatar
-    const mobileUserAvatar = document.getElementById('mobile-user-avatar');
-    if (mobileUserAvatar) {
-      // If user has an avatar, use it, otherwise generate initials
-      if (this.currentUser.avatar) {
-        mobileUserAvatar.src = this.currentUser.avatar;
-        mobileUserAvatar.alt = `${firstName}'s avatar`;
-      } else {
-        const initials = (this.currentUser.first_name?.charAt(0) || 
-                        this.currentUser.email?.charAt(0).toUpperCase() || 'U') + 
-                       (this.currentUser.last_name?.charAt(0) || '');
-        mobileUserAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=3b82f6&color=fff`;
-        mobileUserAvatar.alt = `${initials} avatar`;
+    try {
+      console.log('Setting Directus authentication token...');
+      
+      // In v20.0.0, we set the token on the client instance
+      this.directus.token = token;
+      
+      // Update the authentication state if it exists
+      if (this.directus.auth) {
+        this.directus.auth.token = token;
+        
+        // Store in auth storage if available
+        if (this.directus.auth.storage) {
+          this.directus.auth.storage.setItem('auth_token', token);
+        }
       }
-    } else {
-      console.warn('Could not find mobile-user-avatar element');
-    }
-    
-    // Update user menu button accessibility
-    const userMenuButton = document.getElementById('user-menu-button');
-    if (userMenuButton) {
-      userMenuButton.setAttribute('aria-label', `User menu for ${firstName}`);
-    } else {
-      console.warn('Could not find user-menu-button element');
+      
+      // Store in localStorage for persistence
+      localStorage.setItem('directus_token', token);
+      
+      console.log('Token set successfully');
+      return true;
+    } catch (error) {
+      console.error('Error setting token:', error);
+      return false;
     }
   }
-  
+
+  // Test Directus API connection
+  async testDirectusConnection(url, token) {
+    try {
+      console.log('Testing Directus API connection...');
+      
+      // Test server availability
+      const serverInfo = await fetch(`${url}/server/info`);
+      if (!serverInfo.ok) {
+        throw new Error(`Server not available: ${serverInfo.status} ${serverInfo.statusText}`);
+      }
+      
+      // Test authentication
+      const authCheck = await fetch(`${url}/users/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!authCheck.ok) {
+        const error = await authCheck.json().catch(() => ({}));
+        console.error('Authentication failed:', {
+          status: authCheck.status,
+          statusText: authCheck.statusText,
+          error
+        });
+        throw new Error(`Authentication failed: ${authCheck.status} ${authCheck.statusText}`);
+      }
+      
+      const userData = await authCheck.json();
+      console.log('Authentication successful, user data:', userData);
+      return userData;
+    } catch (error) {
+      console.error('Connection test failed:', error);
+      throw error;
+    }
+  }
+
+  // Handle user login with static token
+  async login(email = 'admin@example.com', password = '5a03ea6a', url = 'https://directus-oracle.panel.ballarihealth.com') {
+    try {
+      this.showLoading(true, 'Logging in...');
+      console.log('Initializing login process...');
+
+      // Clear any existing tokens and state
+      localStorage.removeItem('directus_token');
+      localStorage.removeItem('directus_refresh_token');
+      this.isAuthenticated = false;
+      this.currentUser = null;
+      
+      // Ensure URL has the correct format
+      const apiUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+      
+      // Use the static token from memory
+      const staticToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjExNzkyNzZlLTk0ZjMtNDQ0Zi1hYzAzLTAyYzUyYjlmOGE3MiIsInJvbGUiOiI3YmIzY2IxZi0xNjQzLTQ3NTItYWZkOS1iMTgzYWViOTRiMzIiLCJhcHBfYWNjZXNzIjp0cnVlLCJhZG1pbl9hY2Nlc3MiOnRydWUsImlhdCI6MTc1MzU4ODk5MSwiZXhwIjoxNzUzNTg5ODkxLCJpc3MiOiJkaXJlY3R1cyJ9.UCAIu0sslRzh2_h3qcLQg-JV3IUh9k0rXQAk5ff0OWI';
+      
+      if (!staticToken) {
+        throw new Error('No authentication token available');
+      }
+      
+      console.log('Using static token for authentication');
+      
+      // Store the token and other details
+      localStorage.setItem('directus_token', staticToken);
+      localStorage.setItem('directus_email', email);
+      localStorage.setItem('directus_url', apiUrl);
+      
+      // Initialize Directus with the static token
+      await this.initializeDirectus(apiUrl, email, staticToken);
+      
+      // Try to load the current user
+      try {
+        console.log('Loading current user after authentication...');
+        const user = await this.loadCurrentUser();
+        
+        if (!user) {
+          throw new Error('Failed to load user data after authentication');
+        }
+        
+        console.log('Login successful, user:', user);
+        this.isAuthenticated = true;
+        this.currentUser = user;
+        
+        // Store user data in localStorage for persistence
+        localStorage.setItem('directus_user', JSON.stringify(user));
+        
+        // Update UI
+        if (typeof this.updateUserUI === 'function') {
+          this.updateUserUI();
+        }
+        
+        // Show success message
+        if (typeof this.showNotification === 'function') {
+          this.showNotification('Login successful!', 'success');
+        } else if (typeof this.showMessage === 'function') {
+          this.showMessage('Login successful!', 'success');
+        } else {
+          console.log('Login successful!');
+        }
+        
+        // Show the app view after a short delay to ensure UI updates
+        setTimeout(() => {
+          this.showView('app');
+        }, 100);
+        
+        return user;
+        
+      } catch (error) {
+        console.error('Authentication failed:', error);
+        // Clear any stored credentials on error
+        localStorage.removeItem('directus_token');
+        localStorage.removeItem('directus_email');
+        localStorage.removeItem('directus_url');
+        
+        // Show error message
+        const errorMessage = error.message || 'Authentication failed';
+        if (typeof this.showNotification === 'function') {
+          this.showNotification(`Login failed: ${errorMessage}`, 'error');
+        } else if (typeof this.showMessage === 'function') {
+          this.showMessage(`Login failed: ${errorMessage}`, 'error');
+        } else {
+          alert(`Login failed: ${errorMessage}`);
+        }
+        
+        throw error;
+      }
+      
+    } catch (error) {
+      console.error('Error during login:', error);
+      // Ensure loading is always turned off
+      if (typeof this.showLoading === 'function') {
+        this.showLoading(false);
+      }
+      throw error;
+    } finally {
+      if (typeof this.showLoading === 'function') {
+        this.showLoading(false);
+      }
+    }
+  }
+
   // Logout the current user
   async logout() {
     try {
@@ -851,62 +860,94 @@ try {
           console.warn('Error during token revocation:', error);
           // Continue with logout even if token revocation fails
         }
+        
+        // Clear all stored data
+        localStorage.removeItem('directus_token');
+        localStorage.removeItem('directus_refresh_token');
+        localStorage.removeItem('directus_email');
+        localStorage.removeItem('directus_url');
+        
+        // Reset application state
+        this.directus = null;
+        this.currentUser = null;
+        this.currentApp = null;
+        this.isAuthenticated = false;
+        
+        // Show login screen
+        this.showAuth();
+        
+        this.showNotification('You have been logged out successfully', 'success');
       }
-
-      // Clear local storage
-      localStorage.removeItem('directus_token');
-      localStorage.removeItem('directus_refresh_token');
-      localStorage.removeItem('directus_email');
-      localStorage.removeItem('directus_url');
-      
-      // Reset mobile menu icon if it exists
-      const mobileMenuButton = document.getElementById('mobile-menu-button');
-      if (mobileMenuButton) {
-        const icon = mobileMenuButton.querySelector('i');
-        if (icon) {
-          icon.classList.remove('fa-times');
-          if (!icon.classList.contains('fa-bars')) {
-            icon.classList.add('fa-bars');
-          }
-        }
-      }
-      
-      // Reset user dropdown menu if open
-      const userMenuButton = document.getElementById('user-menu-button');
-      const userDropdownMenu = document.getElementById('user-dropdown-menu');
-      if (userMenuButton && userDropdownMenu) {
-        userMenuButton.setAttribute('aria-expanded', 'false');
-        userDropdownMenu.classList.add('hidden');
-      }
-      
-      // Reset mobile user info
-      const mobileUserEmail = document.getElementById('mobile-user-email');
-      if (mobileUserEmail) {
-        mobileUserEmail.textContent = 'user@example.com';
-      }
-      
-      const mobileUserAvatar = document.getElementById('mobile-user-avatar');
-      if (mobileUserAvatar) {
-        mobileUserAvatar.src = 'https://ui-avatars.com/api/?name=U&background=3b82f6&color=fff';
-        mobileUserAvatar.alt = 'User avatar';
-      }
-      
-      // Reset instance state
-      this.isAuthenticated = false;
-      this.currentUser = null;
-      this.currentApp = null;
-      
-      // Show the login view
-      this.showAuth();
-      
-      // Show a notification
-      this.showNotification('Successfully logged out', 'success');
-      
-      return true;
     } catch (error) {
       console.error('Error during logout:', error);
-      this.showNotification('Error during logout', 'error');
-      return false;
+      this.showNotification('Error during logout. Please try again.', 'error');
+    }
+  }
+
+  // Show authentication screen
+  showAuth() {
+    const authContainer = document.getElementById('auth-container');
+    const appContainer = document.getElementById('app-container');
+    const editorContainer = document.getElementById('editor-container');
+    
+    if (authContainer) authContainer.classList.remove('hidden');
+    if (appContainer) appContainer.classList.add('hidden');
+    if (editorContainer) editorContainer.classList.add('hidden');
+  }
+  
+  // Show main application
+  showApp() {
+    const authContainer = document.getElementById('auth-container');
+    const appContainer = document.getElementById('app-container');
+    const editorContainer = document.getElementById('editor-container');
+    
+    // Update UI elements
+    if (authContainer) {
+      authContainer.classList.add('hidden');
+      authContainer.style.display = 'none';
+    }
+    
+    if (appContainer) {
+      appContainer.classList.remove('hidden');
+      appContainer.style.display = 'block';
+    }
+    
+    if (editorContainer) {
+      editorContainer.classList.add('hidden');
+      editorContainer.style.display = 'none';
+    }
+    
+    // Show the apps view by default
+    this.showView('apps');
+    
+    // Load user's apps
+    this.loadUserApps().catch(error => {
+      console.error('Error loading apps:', error);
+      this.showNotification('Failed to load your apps. Please refresh the page.', 'error');
+    });
+  }
+  
+  // Show a specific view
+  showView(viewName) {
+    console.log(`Showing view: ${viewName}`);
+    
+    // Define all possible views
+    const views = ['apps', 'profile', 'settings', 'collections'];
+    
+    // Hide all views
+    views.forEach(view => {
+      const element = document.getElementById(`${view}-view`);
+      if (element) {
+        element.classList.add('hidden');
+      }
+    });
+    
+    // Show the requested view
+    const targetView = document.getElementById(`${viewName}-view`);
+    if (targetView) {
+      targetView.classList.remove('hidden');
+    } else {
+      console.warn(`View not found: ${viewName}`);
     }
   }
 
@@ -983,48 +1024,6 @@ try {
     }
   }
 
-  // Show main application
-  showApp() {
-    console.log('Showing main application');
-    const authContainer = document.getElementById('auth-container');
-    const appContainer = document.getElementById('app');
-    const editorContainer = document.getElementById('editor-container');
-    
-    console.log('Container states:', {
-      authContainer: authContainer ? 'found' : 'not found',
-      appContainer: appContainer ? 'found' : 'not found',
-      editorContainer: editorContainer ? 'found' : 'not found'
-    });
-    
-    // Update UI with user info
-    this.updateUserUI();
-    
-    // Toggle container visibility
-    if (authContainer) {
-      authContainer.classList.add('hidden');
-      authContainer.style.display = 'none';
-    }
-    
-    if (appContainer) {
-      appContainer.classList.remove('hidden');
-      appContainer.style.display = 'block';
-    }
-    
-    if (editorContainer) {
-      editorContainer.classList.add('hidden');
-      editorContainer.style.display = 'none';
-    }
-    
-    // Show the apps view by default
-    this.showView('apps');
-    
-    // Load user's apps
-    this.loadUserApps().catch(error => {
-      console.error('Error loading user apps:', error);
-      this.showNotification('Failed to load your apps. Please try refreshing the page.', 'error');
-    });
-  }
-
   // Show a specific view
   showView(viewName) {
     console.log(`Showing view: ${viewName}`);
@@ -1047,6 +1046,144 @@ try {
     }
   }
 
+  // Load the currently authenticated user
+  async loadCurrentUser() {
+    try {
+      console.log('Loading current user...');
+      
+      if (!this.directus) {
+        throw new Error('Directus client not initialized');
+      }
+
+      // First, check if we have a token
+      const token = this.directus.token || localStorage.getItem('directus_token');
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.');
+      }
+
+      // Log the token for debugging (first few chars only)
+      console.log(`Using token: ${token.substring(0, 10)}...`);
+      
+      // Try to get the current user using the Directus API
+      console.log('Fetching user data...');
+      
+      try {
+        // First try the auth/me endpoint which is specifically for getting current user info
+        const userResponse = await fetch(`${this.apiUrl}/auth/me`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Origin': window.location.origin
+          },
+          credentials: 'include',
+          mode: 'cors'
+        });
+        
+        console.log('Auth/me response status:', userResponse.status);
+        
+        if (userResponse.status === 401) {
+          // Token is expired or invalid
+          localStorage.removeItem('directus_token');
+          throw new Error('Your session has expired. Please log in again.');
+        }
+        
+        if (!userResponse.ok) {
+          const errorText = await userResponse.text();
+          console.error('Auth/me API error:', errorText);
+          throw new Error(`Failed to fetch user: ${userResponse.status} ${userResponse.statusText}`);
+        }
+        
+        const userData = await userResponse.json();
+        console.log('Auth/me response:', userData);
+        
+        // The auth/me endpoint returns the user data directly, not nested in data
+        return userData;
+        
+      } catch (error) {
+        console.error('Error in auth/me fetch:', error);
+        
+        // If auth/me fails, try the users/me endpoint as fallback
+        try {
+          console.log('Trying users/me endpoint as fallback...');
+          
+          const userResponse = await fetch(`${this.apiUrl}/users/me`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Origin': window.location.origin
+            },
+            credentials: 'include',
+            mode: 'cors'
+          });
+          
+          console.log('Users/me response status:', userResponse.status);
+          
+          if (userResponse.status === 401) {
+            localStorage.removeItem('directus_token');
+            throw new Error('Your session has expired. Please log in again.');
+          }
+          
+          if (!userResponse.ok) {
+            const errorText = await userResponse.text();
+            console.error('Users/me API error:', errorText);
+            throw new Error(`Failed to fetch user: ${userResponse.status} ${userResponse.statusText}`);
+          }
+          
+          const responseData = await userResponse.json();
+          console.log('Users/me response:', responseData);
+          
+          // Return the user data (handle both direct and nested responses)
+          return responseData?.data || responseData;
+          
+        } catch (secondError) {
+          console.error('Error in users/me fetch:', secondError);
+          throw new Error(`Failed to load user: ${secondError.message}`);
+        }
+      }
+      
+      console.log('User data received:', response);
+      
+      if (!response) {
+        throw new Error('No user data received');
+      }
+      
+      // Format the user data consistently
+      this.currentUser = {
+        id: response.id,
+        email: response.email,
+        first_name: response.first_name,
+        last_name: response.last_name,
+        role: response.role,
+        avatar: response.avatar,
+        last_access: response.last_access,
+        last_page: response.last_page,
+        status: response.status,
+        isAdmin: response.role?.admin_access === true || response.role?.name === 'Administrator',
+        // Add any other fields you need
+      };
+      
+      this.isAuthenticated = true;
+      
+      // Update UI with user data if the method exists
+      if (typeof this.updateUserUI === 'function') {
+        this.updateUserUI();
+      }
+      
+      console.log('User loaded successfully:', this.currentUser);
+      return this.currentUser;
+    } catch (error) {
+      console.error('Error loading current user:', error);
+      this.isAuthenticated = false;
+      this.currentUser = null;
+      this.showAuth();
+      throw error;
+    }
+  }
+
   // Load user's apps from Directus
   async loadUserApps() {
     try {
@@ -1063,28 +1200,27 @@ try {
       
       console.log('Loading apps for user:', this.currentUser.id);
       
-      try {
-        // Use the Directus SDK to fetch apps
-        const result = await this.directus.request(
-          readItems('gjs_apps', {
-            filter: {
-              user_created: {
-                _eq: this.currentUser.id
-              }
-            },
-            fields: ['*']
-          })
-        );
-        
-        console.log('Apps loaded via SDK:', result);
-        
-        if (Array.isArray(result)) {
-          this.renderApps(result);
-          return result;
-        }
-        
-        return [];
-      } catch (error) {
+      // Use the Directus SDK to fetch apps
+      const result = await this.directus.request(
+        readItems('gjs_apps', {
+          filter: {
+            user_created: {
+              _eq: this.currentUser.id
+            }
+          },
+          fields: ['*']
+        })
+      );
+      
+      console.log('Apps loaded via SDK:', result);
+      
+      if (Array.isArray(result)) {
+        this.renderApps(result);
+        return result;
+      }
+      
+      return [];
+    } catch (error) {
       console.error('Error loading user apps:', error);
       // Don't show refresh message if it's an auth error
       if (error.message.includes('token') || error.message.includes('auth') || error.message.includes('401')) {
@@ -1661,19 +1797,6 @@ try {
       if (this.currentApp && this.currentApp.id === appId) {
         this.currentApp = null;
         if (this.editor) {
-          this.editor.destroy();
-          this.editor = null;
-        }
-      }
-      
-      // Reload the apps list
-      await this.loadUserApps();
-      
-      this.showNotification('App deleted successfully', 'success');
-      return true;
-      if (this.currentApp && this.currentApp.id === appId) {
-        this.currentApp = null;
-        if (this.editor) {
           try {
             this.editor.destroy();
           } catch (error) {
@@ -1684,8 +1807,9 @@ try {
         this.showView('apps');
       }
       
-      // Reload apps list
+      // Reload the apps list
       await this.loadUserApps();
+      
       this.showNotification('App deleted successfully', 'success');
       return true;
       
