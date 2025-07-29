@@ -13,9 +13,7 @@
   "dependencies": {
     "@directus/sdk": "^20.0.0",
     "dotenv": "^16.0.3",
-    "grapesjs": "^0.21.13",
-    "grapesjs-blocks-basic": "^1.0.2",
-    "grapesjs-preset-webpage": "^0.1.11"
+    "grapesjs": "^0.21.13"
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",
