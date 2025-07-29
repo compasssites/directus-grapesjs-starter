@@ -183,7 +183,7 @@ class DirectusGrapesJSBuilder {
       this.directusClient = createDirectus(url).with(rest()).with(authentication());
       
       // Authenticate
-      await this.directusClient.login(email, password);
+      await this.directusClient.login({ email, password });
       
       // Get current user
       this.currentUser = await this.directusClient.request(readMe());
